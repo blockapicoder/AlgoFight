@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "botSignature": "0345d848b7ba938201f909803832506cc024ccfb2d0f7f108b49525460521e4d",
+  "levelIndex": 0,
+  "opponentIndex": 0,
+  "completed": false,
+  "programming": {
+    "/bots/bot1.ts": {
+      "levelIndex": 35,
+      "completed": true
+    }
+  },
+  "selectedProgrammingBot": "/bots/bot1.ts"
+}
