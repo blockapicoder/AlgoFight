@@ -7,7 +7,7 @@ import {
     type Position
 } from "./algofight-entity-model"
 import { isGeneratedBotSourcePath, listBotSources, readSource, writeSource, type BotSourceNode } from "./bots-script-tools"
-import { entityToJsonData, type JsonData } from "./entity-model"
+import { entityToJsonData, type JsonData } from "./node_modules/tauri-kargo-tools/src/entity-model"
 import { GestionMonde } from "./gestion-algofight-entity-model"
 
 export const GAME_LEVELS_SOURCE = "algofight-levels.json"

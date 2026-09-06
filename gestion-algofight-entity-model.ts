@@ -17,7 +17,7 @@ import {
     Log as BotState,
     BotTurnComplete
 } from "./algofight-entity-model"
-import { entityToJsonData, JsonData, JsonDatatoEntity } from "./entity-model"
+import { entityToJsonData, JsonData, JsonDatatoEntity } from "./node_modules/tauri-kargo-tools/src/entity-model"
 
 
 export const POUVOIRS: readonly Technologie[] = [
@@ -346,7 +346,7 @@ export class GestionMonde {
     private ownedTechnologyCount(joueur: Joueur, technologie: Technologie) {
         if (!this.isTechnologyEnabled(technologie)) return 0
         return this.usines().filter(usine =>
-            usine.technologie === technologie && usine.etat?.joueur === joueur
+            usine.technologie === technologie && usine.etat?.joueur === joueur && (usine.joueursActif ?? []).includes(joueur)
         ).length
     }
 
@@ -548,6 +548,15 @@ export class GestionMonde {
             if (lifeCount > 0) {
                 if (target.etat) {
                     target.etat.vieCount += lifeCount
+                    if (target.etat.vieCount >= this.config.NOMBRE_VIE_POUR_POUVOIR) {
+                        if (target.joueursActif) {
+                            if (!target.joueursActif.includes(drone.joueur)) {
+                                target.joueursActif.push(drone.joueur)
+                            }
+                        } else {
+                            target.joueursActif = [drone.joueur]
+                        }
+                    }
                 } else {
                     target.etat = usineEtat(
                         drone.joueur,

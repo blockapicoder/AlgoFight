@@ -17,7 +17,7 @@ import {
     readSource,
     writeSource
 } from "./bots-script-tools"
-import { entityToJsonData, type JsonData } from "./entity-model"
+import { entityToJsonData, type JsonData } from "./node_modules/tauri-kargo-tools/src/entity-model"
 import { GestionMonde, type CombatResult } from "./gestion-algofight-entity-model"
 
 type PlayerKey = "A" | "B"

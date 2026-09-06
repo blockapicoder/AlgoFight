@@ -16,7 +16,7 @@ import {
     isGeneratedBotSourcePath,
     listBotsScript
 } from "./bots-script-tools"
-import { entityToJsonData, type JsonData } from "./entity-model"
+import { entityToJsonData, type JsonData } from "./node_modules/tauri-kargo-tools/src/entity-model"
 import {
     GAME_LEVELS_SOURCE as CAMPAIGN_LEVELS_SOURCE,
     GAME_POWER_LEVELS as CAMPAIGN_POWER_LEVELS,

@@ -29,6 +29,7 @@ export interface StrategyProfile {
 }
 
 const BASE_TRANSPORT = 10
+const DEFAULT_POWER_LIFE = 3
 const TECHNOLOGY_ORDER: readonly Technologie[] = [
     "Population",
     "Vitesse",
@@ -45,6 +46,31 @@ function technologyEnabled(world: Monde, technology: Technologie) {
         Math.trunc(configuredCount)
     ))
     return TECHNOLOGY_ORDER.indexOf(technology) < enabledCount
+}
+
+function powerLifeThreshold(world: Monde) {
+    const configuredLife = world.config?.NOMBRE_VIE_POUR_POUVOIR
+    return Number.isFinite(configuredLife)
+        ? Math.max(1, Math.trunc(configuredLife))
+        : DEFAULT_POWER_LIFE
+}
+
+function factoryPowerActive(world: Monde, factory: Usine) {
+    return technologyEnabled(world, factory.technologie)
+        && (factory.joueursActif ?? []).includes(world.joueur)
+}
+
+function factoryLifeGoal(world: Monde, factory: Usine, profile: StrategyProfile) {
+    const currentLife = factory.etat?.vieCount ?? 0
+    if (technologyEnabled(world, factory.technologie) && !factoryPowerActive(world, factory)) {
+        // Si le seuil est déjà atteint sans activation (par exemple juste après
+        // une conquête), une livraison supplémentaire déclenche joueursActif.
+        const activationGoal = currentLife >= powerLifeThreshold(world)
+            ? currentLife + 1
+            : powerLifeThreshold(world)
+        return Math.max(profile.minimumFactoryLife, activationGoal)
+    }
+    return profile.minimumFactoryLife
 }
 
 function distance(a: Element, b: Element) {
@@ -128,14 +154,19 @@ function weakestOwnFactory(
     drone: Drone,
     factories: Usine[],
     plannedLife: Map<string, number>,
-    maximumLife: number
+    profile: StrategyProfile,
+    world: Monde
 ) {
     let target: Usine | undefined
     let bestScore = Infinity
     for (const factory of factories) {
         const projectedLife = (factory.etat?.vieCount ?? 0) + (plannedLife.get(factory.id) ?? 0)
-        if (projectedLife >= maximumLife) continue
-        const score = projectedLife * 500 + distance(drone, factory)
+        if (projectedLife >= factoryLifeGoal(world, factory, profile)) continue
+        const activationPriority = technologyEnabled(world, factory.technologie)
+            && !factoryPowerActive(world, factory)
+            ? -100_000
+            : 0
+        const score = activationPriority + projectedLife * 500 + distance(drone, factory)
         if (score < bestScore) {
             target = factory
             bestScore = score
@@ -250,7 +281,7 @@ export function runBot(profile: StrategyProfile) {
         // Un pouvoir verrouillé ne doit modifier ni les capacités estimées du
         // bot ni son choix d’usine dans les niveaux à zéro ou peu de pouvoirs.
         const counts = technologyCounts(ownFactories.filter(factory =>
-            technologyEnabled(world, factory.technologie)
+            factoryPowerActive(world, factory)
         ))
         const power = 1 + (counts.get("Puissance") ?? 0)
         const capacity = (world.config?.TRANSPORT_COUNT ?? BASE_TRANSPORT)
@@ -281,7 +312,7 @@ export function runBot(profile: StrategyProfile) {
             } else if (target.etat.joueur === world.joueur && drone.vieCount > 0) {
                 plannedFactoryLife.set(
                     target.id,
-                    (plannedFactoryLife.get(target.id) ?? 0) + Math.min(power, drone.vieCount)
+                    (plannedFactoryLife.get(target.id) ?? 0) + drone.vieCount
                 )
             } else if (target.etat.joueur !== world.joueur) {
                 const life = target.etat.vieCount
@@ -323,8 +354,14 @@ export function runBot(profile: StrategyProfile) {
                 drone,
                 ownFactories,
                 plannedFactoryLife,
-                profile.minimumFactoryLife
+                profile,
+                world
             )
+            const factoryToActivate = weakFactory
+                && technologyEnabled(world, weakFactory.technologie)
+                && !factoryPowerActive(world, weakFactory)
+                ? weakFactory
+                : undefined
 
             // La vie est la seule ressource capable de prendre une usine neutre.
             // La deuxième usine reste prioritaire, sauf pour les profils qui
@@ -339,7 +376,7 @@ export function runBot(profile: StrategyProfile) {
                     target = weakFactory
                     plannedFactoryLife.set(
                         weakFactory.id,
-                        (plannedFactoryLife.get(weakFactory.id) ?? 0) + Math.min(power, drone.vieCount)
+                        (plannedFactoryLife.get(weakFactory.id) ?? 0) + drone.vieCount
                     )
                 } else {
                     target = hasLife
@@ -356,6 +393,21 @@ export function runBot(profile: StrategyProfile) {
                 }
             }
 
+            // Dès que la deuxième usine est acquise, les pouvoirs disponibles
+            // sont activés en priorité. Sans cargaison, le drone va d'abord
+            // chercher une vie ; avec de la vie, il complète le seuil de l'usine.
+            if (!target && !needsSecondFactory && factoryToActivate) {
+                target = hasLife
+                    ? factoryToActivate
+                    : nearest(drone, freeLife, reservedResources)
+                if (target === factoryToActivate) {
+                    plannedFactoryLife.set(
+                        factoryToActivate.id,
+                        (plannedFactoryLife.get(factoryToActivate.id) ?? 0) + drone.vieCount
+                    )
+                }
+            }
+
             // Une usine alliée est renforcée avec de la vie, jamais avec de
             // l'énergie. Les supports privilégient toujours l'usine la plus faible.
             if (!target && hasLife && weakFactory
@@ -363,7 +415,7 @@ export function runBot(profile: StrategyProfile) {
                 target = weakFactory
                 plannedFactoryLife.set(
                     weakFactory.id,
-                    (plannedFactoryLife.get(weakFactory.id) ?? 0) + Math.min(power, drone.vieCount)
+                    (plannedFactoryLife.get(weakFactory.id) ?? 0) + drone.vieCount
                 )
             }
 
@@ -439,7 +491,7 @@ export function runBot(profile: StrategyProfile) {
                 target = weakFactory
                 plannedFactoryLife.set(
                     weakFactory.id,
-                    (plannedFactoryLife.get(weakFactory.id) ?? 0) + Math.min(power, drone.vieCount)
+                    (plannedFactoryLife.get(weakFactory.id) ?? 0) + drone.vieCount
                 )
             }
 
@@ -448,7 +500,7 @@ export function runBot(profile: StrategyProfile) {
             if (!target && cargo < capacity) {
                 const needsLife = drone.vieCount < profile.desiredDroneLife
                     || ownFactories.some(factory =>
-                        (factory.etat?.vieCount ?? 0) < profile.minimumFactoryLife
+                        (factory.etat?.vieCount ?? 0) < factoryLifeGoal(world, factory, profile)
                     )
                 target = needsLife
                     ? nearest(drone, freeLife, reservedResources)

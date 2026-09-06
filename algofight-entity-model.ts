@@ -1,4 +1,4 @@
-import { Entity, JsonDatatoEntity } from "./entity-model"
+import { Entity, JsonDatatoEntity } from "./node_modules/tauri-kargo-tools/src/entity-model"
 
 export const USINE_COUNT = 20
 export const VIE_COUNT = 100
@@ -16,6 +16,7 @@ export const DRONE_SPEED = 2
 export const DRONE_SPEED_FACTOR = 1
 export const POUVOIR_COUNT = 5
 export const POPULATION_FACTOR = 2
+export const NOMBRE_VIE_POUR_POUVOIR = 3
 
 export interface Config {
     USINE_COUNT: number
@@ -34,7 +35,8 @@ export interface Config {
     /** Nombre de technologies actives, dans l’ordre Population → Puissance. */
     POUVOIR_COUNT: number,
     POPULATION_FACTOR:number,
-    BUILD_FACTOR:number
+    BUILD_FACTOR:number,
+    NOMBRE_VIE_POUR_POUVOIR:number
 }
 
 export const DEFAULT_CONFIG: Config = {
@@ -53,7 +55,8 @@ export const DEFAULT_CONFIG: Config = {
     DRONE_SPEED_FACTOR,
     POUVOIR_COUNT,
     POPULATION_FACTOR,
-    BUILD_FACTOR
+    BUILD_FACTOR,
+    NOMBRE_VIE_POUR_POUVOIR
 }
 
 export interface Position {
@@ -98,6 +101,7 @@ export class Usine extends Element {
 
     etat?: UsineEtat
     technologie!: Technologie
+    joueursActif?:Joueur []
 }
 
 export interface Target {
